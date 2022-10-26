@@ -18,3 +18,6 @@ pip3 install -r requirements.txt
 ```
 
 # PoC
+
+# TODO
+- [X] Add Excel and PDF support.
