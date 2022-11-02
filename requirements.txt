@@ -1,2 +1,1 @@
 rich
-pdfminer.six

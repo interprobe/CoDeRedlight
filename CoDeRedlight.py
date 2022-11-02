@@ -17,15 +17,6 @@ except:
     print("Error: >rich< not found.")
     sys.exit(1)
 
-# Checking for pdfminer
-try:
-    from pdfminer.pdfparser import PDFParser
-    from pdfminer.pdfdocument import PDFDocument
-    from pdfminer.pdftypes import resolve1
-except:
-    print("Error: >pdfminer< module not found.")
-    sys.exit(1)
-
 # Legends
 infoS = f"[bold cyan][[bold red]*[bold cyan]][white]"
 errorS = f"[bold cyan][[bold red]![bold cyan]][white]"
@@ -159,7 +150,15 @@ class CoDeRedlight:
         else:
             return None
 
-    def DisarmWORD(self, doc_handler, target_contents):
+    def LocateCDFv2(self, data_stream):
+        regx = re.search("d0cf11e0a1b11ae1", str(binascii.hexlify(data_stream)))
+        if regx:
+            if regx.start() == 2:
+                return True
+        else:
+            return False
+
+    def DisarmMaliciousContents(self, doc_handler, target_contents):
         # Creating a temporary directory
         tmpDir = tempfile.mkdtemp()
         doc_handler[0].extractall(tmpDir)
@@ -173,6 +172,9 @@ class CoDeRedlight:
         # Temp data
         tempdata = []
 
+        # Modification count
+        modcount = 0
+
         # Iterating through target contents
         for fff in allfiles:
             try:
@@ -184,6 +186,7 @@ class CoDeRedlight:
             if fff in target_contents:
                 # Replacing data
                 data = data.replace(target_contents[fff], "CoDeRedlight")
+                modcount += 1
             else:
                 pass
 
@@ -191,6 +194,14 @@ class CoDeRedlight:
             if ".bin" in fff:
                 print(f"\n{infoS} Disarming [bold green]{fff}\n")
                 data = "Disarmed!"
+                modcount += 1
+
+            # If there is no binary files, we need to check for CDFv2
+            tmp_data = doc_handler[0].read(fff)
+            if self.LocateCDFv2(tmp_data):
+                print(f"\n{infoS} Disarming [bold green]{fff}\n")
+                data = "Disarmed!"
+                modcount += 1
 
             # Writing data
             try:
@@ -201,14 +212,19 @@ class CoDeRedlight:
                 pass
 
         # Creating a new document with modified parts
-        with zipfile.ZipFile(f"{self.filename}_modified.{ext}", "w") as newdoc:
-            for fff in tempdata:
-                sanitized = fff.replace(f"{tmpDir}/", "")
-                newdoc.write(fff, sanitized)
-        print(f"{infoS} Modified document saved as [bold green]{self.filename}_modified.{ext}")
+        if modcount != 0:
+            with zipfile.ZipFile(f"{self.filename}_modified.{ext}", "w") as newdoc:
+                for fff in tempdata:
+                    sanitized = fff.replace(f"{tmpDir}/", "")
+                    newdoc.write(fff, sanitized)
+            print(f"{infoS} Modified document saved as [bold green]{self.filename}_modified.{ext}")
+        else:
+            print(f"\n{infoS} There is no malicious content in this document. [bold green]Nothing to disarm.")
+
+        # Removing temporary directory
         shutil.rmtree(tmpDir)
 
-    def DoWordDocAnalysis(self):
+    def PerformAnalysis(self):
         ioc = {
             "URLs": []
         }
@@ -218,17 +234,20 @@ class CoDeRedlight:
             # Dealing with URL's
             urls = self.GetInterestingURLs(doc_handler)
             if urls == None or urls == {}:
-                print(f"{errorS} Error: [bold red]No URLs found.")
-                self.DisarmWORD(doc_handler, urls)
+                self.DisarmMaliciousContents(doc_handler, urls)
                 return None
             else:
                 print("\n[bold magenta]>>>[bold white] Extracting IoC data.")
+
+                # Extracting URLs to another file
                 ioc["URLs"] = urls
                 with open(f"{self.filename}_IoC.json", "w") as f:
                     json.dump(ioc, f, indent=4)
                 print(f"{infoS} [bold green]Done. [bold white]Results saved to [bold green]{self.filename}_IoC.json[bold white].\n")
+
+                # Disarming malicious contents
                 print("[bold magenta]>>>[bold white] Disabling malicious contents.")
-                self.DisarmWORD(doc_handler, urls)
+                self.DisarmMaliciousContents(doc_handler, urls)
         else:
             print(f"{errorS} Error: [bold red]Unable to get document structure.")
             return None
@@ -239,8 +258,10 @@ class CoDeRedlight:
         
         # Getting document type
         doc_type = self.CheckDocType()
-        if doc_type == "Microsoft Word 2007+":
-            self.DoWordDocAnalysis()
+        if doc_type == "Microsoft Word 2007+" or doc_type == "Microsoft Excel 2007+":
+            self.PerformAnalysis() # For disarming malicious URL's and binary files. (Also CDFv2)
+        else:
+            pass
 
 # Main
 if __name__ == "__main__":

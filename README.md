@@ -7,6 +7,10 @@
 - Extract IoC data.
 - Disarming C2 URL's and anohter malicious contents.
 
+# Updates
+- [X] Bug fixes.
+- [X] Added Excel support. Now you can clear malicious contents from your file. (Effective againts embedded Equation Editor exploits)
+
 # Usage
 ```bash
 python3 CoDeRedlight.py <target_file>
@@ -20,4 +24,4 @@ pip3 install -r requirements.txt
 # PoC
 
 # TODO
-- [X] Add Excel and PDF support.
+- [X] Add PDF support.
