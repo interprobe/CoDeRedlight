@@ -136,15 +136,36 @@ class CoDeRedlight:
 
                 # Append to list
                 if linkz != []:
+                    lnk_holder = []
                     for lnk in linkz:
                         if "schemas.openxmlformats.org" not in lnk and "schemas.microsoft.com" not in lnk and "purl.org" not in lnk and "www.w3.org" not in lnk and "go.microsoft.com" not in lnk:
-                            urls.update({fle: lnk})
-                            urlTable.add_row(fle, lnk)
+                            if "<" in lnk:
+                                for ll in lnk.split("<"):
+                                    if "http" in ll and ">" in ll:
+                                        for lll in ll.split(">"):
+                                            if "http" in lll:
+                                                lnk_holder.append(lll)
+                                    elif "http" in ll and "<" in ll:
+                                        for lll in ll.split("<"):
+                                            if "http" in lll:
+                                                lnk_holder.append(lll)
+                                    else:
+                                        if "http" in ll:
+                                            lnk_holder.append(ll)
+                            else:
+                                lnk_holder.append(lnk)
+
+                    if lnk_holder != []:
+                        urls.update({fle:lnk_holder})
             except:
                 continue
 
         # Printing table and returning list
-        if urls != []:
+        if urls != {}:
+            for fle in urls:
+                for lnk in urls[fle]:
+                    urlTable.add_row(f"[bold green]{fle}", f"[bold red]{lnk}")
+
             print(urlTable)
             return urls
         else:
@@ -159,6 +180,7 @@ class CoDeRedlight:
             return False
 
     def DisarmMaliciousContents(self, doc_handler, target_contents):
+        print("\n[bold magenta]>>>[bold white] Disabling malicious contents.")
         # Creating a temporary directory
         tmpDir = tempfile.mkdtemp()
         doc_handler[0].extractall(tmpDir)
@@ -183,23 +205,35 @@ class CoDeRedlight:
                 data = str(doc_handler[0].read(fff))
 
             # Checking for target contents
-            if fff in target_contents:
-                # Replacing data
-                data = data.replace(target_contents[fff], "CoDeRedlight")
+            if target_contents:
+                if fff in target_contents:
+                    print(f"{infoS} Disarming malicious URLs in [bold green]{fff}")
+
+                    # Replacing data
+                    for ttt in target_contents[fff]:
+                        if ttt in data:
+                            data = data.replace(ttt, "CoDeRedlight")
+                            modcount += 1
+                else:
+                    pass
+
+            # Disarming macro presence
+            exs = re.findall("macro=", data)
+            if exs != []:
+                print(f"{infoS} Disarming macro presence on [bold green]{fff}")
+                data = data.replace("macro=", "CoDeRedlight=")
                 modcount += 1
-            else:
-                pass
 
             # Disarming .bin files
             if ".bin" in fff:
-                print(f"\n{infoS} Disarming [bold green]{fff}\n")
+                print(f"{infoS} Disarming [bold green]{fff}")
                 data = "Disarmed!"
                 modcount += 1
 
             # If there is no binary files, we need to check for CDFv2
             tmp_data = doc_handler[0].read(fff)
             if self.LocateCDFv2(tmp_data):
-                print(f"\n{infoS} Disarming [bold green]{fff}\n")
+                print(f"{infoS} Disarming [bold green]{fff}")
                 data = "Disarmed!"
                 modcount += 1
 
@@ -217,7 +251,7 @@ class CoDeRedlight:
                 for fff in tempdata:
                     sanitized = fff.replace(f"{tmpDir}/", "")
                     newdoc.write(fff, sanitized)
-            print(f"{infoS} Modified document saved as [bold green]{self.filename}_modified.{ext}")
+            print(f"\n{infoS} Modified document saved as [bold green]{self.filename}_modified.{ext}")
         else:
             print(f"\n{infoS} There is no malicious content in this document. [bold green]Nothing to disarm.")
 
@@ -246,7 +280,6 @@ class CoDeRedlight:
                 print(f"{infoS} [bold green]Done. [bold white]Results saved to [bold green]{self.filename}_IoC.json[bold white].\n")
 
                 # Disarming malicious contents
-                print("[bold magenta]>>>[bold white] Disabling malicious contents.")
                 self.DisarmMaliciousContents(doc_handler, urls)
         else:
             print(f"{errorS} Error: [bold red]Unable to get document structure.")
@@ -260,8 +293,10 @@ class CoDeRedlight:
         doc_type = self.CheckDocType()
         if doc_type == "Microsoft Word 2007+" or doc_type == "Microsoft Excel 2007+":
             self.PerformAnalysis() # For disarming malicious URL's and binary files. (Also CDFv2)
+        elif doc_type == "Composite Document File V2":
+            print(f"{errorS} Analysis technique not yet implemented.")
         else:
-            pass
+            print(f"{errorS} Unknown file type. Maybe analysis technique is not implemented yet.")
 
 # Main
 if __name__ == "__main__":

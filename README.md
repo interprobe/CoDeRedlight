@@ -10,6 +10,7 @@
 # Updates
 - [X] Bug fixes.
 - [X] Added Excel support. Now you can clear malicious contents from your file. (Effective againts embedded Equation Editor exploits)
+- [X] Malicious URL finding capability is improved. Now you can clear Emotet/Heodo documents easily.
 
 # Usage
 ```bash
@@ -26,3 +27,4 @@ https://user-images.githubusercontent.com/108284701/200328498-9fbef911-1dec-49c5
 
 # TODO
 - [X] Add PDF and CDFv2 support.
+- [X] Improve disarming capabilities.
